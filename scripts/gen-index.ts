@@ -193,6 +193,53 @@ const html = `<!DOCTYPE html>
   .generated { color: var(--muted); font-size: 12px; margin-top: 40px; text-align: center; }
   a.gh { color: var(--accent); text-decoration: none; }
   a.gh:hover { text-decoration: underline; }
+
+  /* ── API cheat sheet ── */
+  .cheat {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .cheat .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px; background: #010409; border-bottom: 1px solid var(--border);
+  }
+  .cheat .toolbar .dots { display: flex; gap: 6px; }
+  .cheat .toolbar .dots span {
+    width: 11px; height: 11px; border-radius: 50%; display: inline-block;
+  }
+  .cheat .dots .r { background: #ff5f56; }
+  .cheat .dots .y { background: #ffbd2e; }
+  .cheat .dots .g { background: #27c93f; }
+  .cheat .toolbar .name { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .cheat button.copy {
+    background: rgba(47,129,247,0.12); border: 1px solid var(--border); color: var(--accent);
+    font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+    font-family: var(--mono); transition: all 0.15s;
+  }
+  .cheat button.copy:hover { background: rgba(47,129,247,0.22); }
+  .cheat button.copy.copied { color: var(--green); border-color: var(--green); }
+  .cheat pre {
+    margin: 0; padding: 16px 18px; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.7; color: var(--text);
+  }
+  .cheat pre .c { color: var(--muted); }       /* comment */
+  .cheat pre .k { color: #ff7b72; }             /* keyword */
+  .cheat pre .s { color: #a5d6ff; }             /* string */
+  .cheat pre .n { color: #79c0ff; }             /* number/key */
+  .cheat pre .g { color: var(--green); }        /* good/url */
+  .cheat .md-block pre { white-space: pre-wrap; word-break: break-word; }
+  .cheat .tabs { display: flex; border-bottom: 1px solid var(--border); background: #010409; }
+  .cheat .tabs button {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    padding: 10px 16px; font-size: 13px; font-family: inherit;
+    border-bottom: 2px solid transparent; transition: all 0.15s;
+  }
+  .cheat .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+  .cheat .tab-body { display: none; }
+  .cheat .tab-body.active { display: block; }
+  .cheat .md-block { margin-top: 12px; }
+  .cheat .md-block:first-child { margin-top: 0; }
+  .cheat .md-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; padding: 0 4px; }
 </style>
 </head>
 <body>
@@ -229,6 +276,138 @@ const html = `<!DOCTYPE html>
     </div>
   </section>
 
+  <section id="api">
+    <h2>📘 Инструкция и API — шпаргалка</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:16px;">
+      Скопируй блок ниже и вставь ИИ-агенту — это полное описание API razdfeed.
+      Доступно 2 формата: Markdown (для промптов) и примеры запросов (curl/fetch).
+    </p>
+    <div class="cheat">
+      <div class="tabs">
+        <button class="active" onclick="switchTab(event,'md')">Markdown (для ИИ)</button>
+        <button onclick="switchTab(event,'code')">Примеры запросов</button>
+      </div>
+      <div class="tab-body active" id="tab-md">
+        <div class="toolbar">
+          <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <span class="name">razdfeed-api.md</span>
+          <button class="copy" onclick="copyBlock('md-block','this')">📋 Копировать</button>
+        </div>
+        <div class="md-block">
+          <div class="md-label">Markdown инструкция для ИИ-агентов:</div>
+          <pre id="md-block"><span class="c">&lt;!-- razdfeed data API — инструкция для ИИ-агентов --&gt;</span>
+
+<span class="k">## razdfeed data API</span>
+
+<span class="c">Базовый URL: https://razdfeed.github.io/fetcher-collector/public/data</span>
+
+<span class="k">### 1. authors.json — список всех авторов</span>
+
+- URL: <span class="g">GET /authors.json</span>
+- Возвращает: { generatedAt, count, authors[] }
+- Каждый автор: { login, name, description, avatar, bio, htmlUrl, blog, repo, sourceRepo, postCount, latestPostAt }
+  - <span class="n">repo</span> — где лежит .razdfeed.yml
+  - <span class="n">sourceRepo</span> — откуда берутся посты
+
+<span class="k">### 2. posts-{page}.json — посты с пагинацией</span>
+
+- URL: <span class="g">GET /posts-1.json</span> (страница 1), /posts-2.json (страница 2) и т.д.
+- Размер страницы: 100 постов
+- Возвращает:
+  - <span class="n">page</span> — номер текущей страницы (1-indexed)
+  - <span class="n">pageSize</span> — 100
+  - <span class="n">totalPosts</span> — всего постов
+  - <span class="n">totalPages</span> — всего страниц
+  - <span class="n">nextPage</span> — имя файла следующей страницы или null
+  - <span class="n">prevPage</span> — имя файла предыдущей страницы или null
+  - <span class="n">posts[]</span> — массив постов
+
+Каждый пост: { number, title, body, url, createdAt, updatedAt, author, authorLogin,
+  authorName, authorAvatar, sourceRepo, category, labels[], slug }
+  - <span class="n">slug</span> = number (строкой)
+  - <span class="n">url</span> — ссылка на оригинал в GitHub Discussions
+
+<span class="k">### Алгоритм загрузки всех постов</span>
+
+<span class="k">1.</span> Загрузи <span class="g">/authors.json</span> — получи список авторов
+<span class="k">2.</span> Загрузи <span class="g">/posts-1.json</span> — получи первую страницу
+<span class="k">3.</span> Пока <span class="n">nextPage</span> не null — грузи следующий файл: <span class="g">/{nextPage}</span>
+<span class="k">4.</span> Остановись когда <span class="n">nextPage</span> === null
+
+<span class="c">Не нужно вычислять имена страниц вручную — всегда следуй полю nextPage.</span>
+<span class="c">Не грузи все страницы если не нужно — каждое поле содержит totalPosts/totalPages.</span>
+
+<span class="k">### Пример fetch (JavaScript)</span>
+
+<span class="k">const</span> base = <span class="s">'https://razdfeed.github.io/fetcher-collector/public/data'</span>;
+<span class="k">const</span> authors = <span class="k">await</span> fetch(<span class="s">\`\${base}/authors.json\`</span>).then(r =&gt; r.json());
+
+<span class="k">let</span> page = <span class="k">await</span> fetch(<span class="s">\`\${base}/posts-1.json\`</span>).then(r =&gt; r.json());
+<span class="k">let</span> allPosts = [...page.posts];
+<span class="k">while</span> (page.nextPage) {
+  page = <span class="k">await</span> fetch(<span class="s">\`\${base}/\${page.nextPage}\`</span>).then(r =&gt; r.json());
+  allPosts = [...allPosts, ...page.posts];
+}
+
+<span class="c">&lt;!-- /razdfeed data API --&gt;</span></pre>
+        </div>
+      </div>
+      <div class="tab-body" id="tab-code">
+        <div class="toolbar">
+          <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <span class="name">requests.sh</span>
+          <button class="copy" onclick="copyBlock('code-block','this')">📋 Копировать</button>
+        </div>
+        <div class="md-block">
+          <div class="md-label">curl / bash примеры:</div>
+          <pre id="code-block"><span class="c"># Базовый URL</span>
+BASE=<span class="s">"https://razdfeed.github.io/fetcher-collector/public/data"</span>
+
+<span class="c"># 1. Получить всех авторов</span>
+curl <span class="s">"$BASE/authors.json"</span> | jq .
+
+<span class="c"># 2. Получить первую страницу постов</span>
+curl <span class="s">"$BASE/posts-1.json"</span> | jq <span class="s">'{page, totalPosts, totalPages, nextPage, posts: [.posts[].title]}'</span>
+
+<span class="c"># 3. Пройти по всем страницам пагинации</span>
+page=<span class="n">1</span>
+<span class="k">while</span> true; <span class="k">do</span>
+  res=$(curl -s <span class="s">"$BASE/posts-$page.json"</span>)
+  echo <span class="s">"Страница $page: $(echo $res | jq '.posts | length') постов"</span>
+  next=$(echo <span class="s">"$res"</span> | jq -r <span class="s">'.nextPage'</span>)
+  [<span class="k">-z</span> <span class="s">"$next"</span> ] || [<span class="s">"$next"</span> = <span class="s">"null"</span> ] && <span class="k">break</span>
+  page=$((page + <span class="n">1</span>))
+<span class="k">done</span>
+
+<span class="c"># 4. Получить посты конкретного автора (фильтрация на клиенте)</span>
+curl <span class="s">"$BASE/posts-1.json"</span> | jq <span class="s">'.posts[] | select(.authorLogin == "dealenx")'</span>
+
+<span class="c"># 5. Найти пост по slug/number</span>
+curl <span class="s">"$BASE/posts-1.json"</span> | jq <span class="s">'.posts[] | select(.slug == "3")'</span></pre>
+        </div>
+        <div class="md-block">
+          <div class="md-label">fetch / JavaScript примеры:</div>
+          <pre id="code-block-js"><span class="c">// Получить всех авторов</span>
+<span class="k">const</span> authors = <span class="k">await</span> fetch(<span class="s">"https://razdfeed.github.io/fetcher-collector/public/data/authors.json"</span>)
+  .then(r =&gt; r.json());
+
+<span class="c">// Загрузить ВСЕ посты, следуя пагинации</span>
+<span class="k">const</span> base = <span class="s">"https://razdfeed.github.io/fetcher-collector/public/data"</span>;
+<span class="k">let</span> page = <span class="k">await</span> fetch(<span class="s">\`\${base}/posts-1.json\`</span>).then(r =&gt; r.json());
+<span class="k">let</span> posts = page.posts;
+<span class="k">while</span> (page.nextPage) {
+  page = <span class="k">await</span> fetch(<span class="s">\`\${base}/\${page.nextPage}\`</span>).then(r =&gt; r.json());
+  posts = posts.concat(page.posts);
+}
+console.log(<span class="s">\`Загружено \${posts.length} из \${page.totalPosts} постов\`</span>);
+
+<span class="c">// Получить посты одного автора</span>
+<span class="k">const</span> byAuthor = posts.filter(p =&gt; p.authorLogin === <span class="s">"dealenx"</span>);</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <p class="generated">Сгенерировано: ${generatedAt}</p>
 </div>
 
@@ -240,6 +419,36 @@ let totalPosts = ${firstPage?.totalPosts ?? 0};
 
 const authorsData = ${authors ? JSON.stringify(JSON.stringify(authors)) : 'null'};
 const firstPageData = ${firstPage ? JSON.stringify(JSON.stringify(firstPage)) : 'null'};
+
+function switchTab(e, name) {
+  document.querySelectorAll('.cheat .tabs button').forEach(b =&gt; b.classList.remove('active'));
+  document.querySelectorAll('.cheat .tab-body').forEach(b =&gt; b.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+async function copyBlock(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const text = el.innerText;
+  try {
+    await navigator.clipboard.writeText(text);
+    const orig = btn.textContent;
+    btn.textContent = '✅ Скопировано';
+    btn.classList.add('copied');
+    setTimeout(() =&gt; { btn.textContent = orig; btn.classList.remove('copied'); }, 1800);
+  } catch (e) {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅ Скопировано';
+    setTimeout(() =&gt; { btn.textContent = '📋 Копировать'; }, 1800);
+  }
+}
 
 function formatDate(iso) {
   if (!iso) return '';
