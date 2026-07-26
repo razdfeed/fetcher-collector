@@ -27,7 +27,7 @@ export async function fetchTelegramPosts(
   owner: string,
   channel: string,
 ): Promise<Post[]> {
-  const url = `https://${owner}.github.io/razdfeed/telegram_posts.json`;
+  const url = `https://${owner}.github.io/razdfeed/telegram_posts.json?t=${Date.now()}`;
   console.log(`  Fetching Telegram posts from ${url}`);
 
   try {
