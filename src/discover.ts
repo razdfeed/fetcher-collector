@@ -132,7 +132,11 @@ export function parseRazdfeedConfig(
           const dm = val.match(/github\.com\/([^/]+)\/([^/]+)\/discussions\/categories\/(.+)/);
           if (dm && dm[1] && dm[2]) {
             config.sourceRepo = `${dm[1]}/${dm[2]}`;
-            if (dm[3]) config.category = dm[3];
+            if (dm[3]) {
+              // Normalize: GitHub category names are capitalized (e.g. "Announcements")
+              const cat = dm[3];
+              config.category = cat.charAt(0).toUpperCase() + cat.slice(1);
+            }
           }
         }
         inTelegram = false;
