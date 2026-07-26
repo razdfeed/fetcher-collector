@@ -106,9 +106,9 @@ export function parseRazdfeedConfig(
     inTelegram = false;
 
     const m = line.match(/^(\w[\w-]*)\s*:\s*(.*)$/);
-    if (!m || !m[1] || !m[2]) continue;
+    if (!m || !m[1]) continue;
     const key = m[1].trim();
-    const val = m[2].trim().replace(/^["']|["']$/g, '');
+    const val = (m[2] ?? '').trim().replace(/^["']|["']$/g, '');
 
     switch (key) {
       case 'name':
