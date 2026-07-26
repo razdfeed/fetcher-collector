@@ -13,6 +13,14 @@ export interface PostMedia {
   videos: string[];
 }
 
+export interface LinkPreview {
+  url: string;
+  image: string | null;
+  siteName: string | null;
+  title: string | null;
+  description: string | null;
+}
+
 export interface Post {
   number: number;
   title: string;
@@ -28,6 +36,7 @@ export interface Post {
   slug: string;
   sourceType: 'github' | 'telegram';
   media?: PostMedia;
+  linkPreview?: LinkPreview;
 }
 
 export interface AuthorInfo {
@@ -81,6 +90,7 @@ export interface FeedPost {
   labels: string[];
   slug: string;
   media?: PostMedia;
+  linkPreview?: LinkPreview;
 }
 
 /** One author entry in authors.json. */

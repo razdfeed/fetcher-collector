@@ -6,7 +6,7 @@
 
 import { parse, type HTMLElement } from 'node-html-parser';
 import TurndownService from 'turndown';
-import type { Post, PostMedia } from './types.ts';
+import type { Post, PostMedia, LinkPreview } from './types.ts';
 
 const DEFAULT_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
@@ -94,6 +94,7 @@ interface TelegramRawPost {
     images: string[];
     videos: string[];
   };
+  linkPreview?: LinkPreview;
 }
 
 function parsePosts(html: string, channel: string): TelegramRawPost[] {
@@ -146,6 +147,32 @@ function parsePosts(html: string, channel: string): TelegramRawPost[] {
       if (src && !videos.includes(src)) videos.push(src);
     });
 
+    // Parse link preview
+    let linkPreview: LinkPreview | null = null;
+    const previewEl = node.querySelector('.tgme_widget_message_link_preview');
+    if (previewEl) {
+      const previewUrl = previewEl.getAttribute('href') ?? '';
+      let previewImage: string | null = null;
+      const imgEl = previewEl.querySelector('.link_preview_right_image, .link_preview_image');
+      if (imgEl) {
+        const style = imgEl.getAttribute('style') ?? '';
+        const m = style.match(/background-image:url\(['"]?(.*?)['"]?\)/);
+        if (m && m[1]) previewImage = m[1];
+      }
+      const siteName = previewEl.querySelector('.link_preview_site_name')?.textContent?.trim() ?? null;
+      const previewTitle = previewEl.querySelector('.link_preview_title')?.textContent?.trim() ?? null;
+      const previewDesc = previewEl.querySelector('.link_preview_description')?.textContent?.trim() ?? null;
+      if (previewUrl) {
+        linkPreview = {
+          url: previewUrl,
+          image: previewImage,
+          siteName,
+          title: previewTitle,
+          description: previewDesc,
+        };
+      }
+    }
+
     posts.push({
       id,
       channel,
@@ -154,6 +181,7 @@ function parsePosts(html: string, channel: string): TelegramRawPost[] {
       textMarkdown,
       datetime,
       media: { images, videos },
+      linkPreview: linkPreview ?? undefined,
     });
   }
 
@@ -259,6 +287,7 @@ export async function collectTelegramPosts(
         slug: `tg-${p.id}`,
         sourceType: 'telegram' as const,
         media: hasMedia ? media : undefined,
+        linkPreview: p.linkPreview,
       };
     });
 }
