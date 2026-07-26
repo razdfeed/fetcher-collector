@@ -1,0 +1,35 @@
+# .razdfeed.yml — config for the razdfeed blog platform.
+#
+# Place this file in a public repository named exactly "razdfeed"
+# (e.g. github.com/yourname/razdfeed). The fetcher-collector bot will
+# discover it automatically and collect your posts.
+#
+# ── Where do posts come from? ──────────────────────────────────────────────
+#
+# By default, posts are fetched from a repo named after your GitHub login:
+#
+#   discovered repo:  yourname/razdfeed   (this file lives here)
+#   posts source:     yourname/yourname   (default — Discussions here)
+#
+# Override with `repo:` if your discussions live in a different repo:
+#
+#   repo: yourname/blog-discussions
+#
+# ── Fields ──────────────────────────────────────────────────────────────────
+#
+#   name         — blog display name (default: your GitHub login)
+#   description  — short blog description
+#   language     — content language code (default: ru)
+#   category     — GitHub Discussions category to pull from (default: Announcements)
+#   labels       — only collect discussions with at least one of these labels.
+#                  Leave empty to collect all.
+#   repo         — source repo for discussions if not the default {login}/{login}.
+#                  Format: "owner/repo"
+
+name: "My Blog"
+description: "Персональный блог на GitHub Discussions"
+language: ru
+category: Announcements
+labels:
+  - published
+# repo: dealenx/blog-discussions
