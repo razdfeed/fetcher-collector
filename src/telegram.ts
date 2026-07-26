@@ -123,9 +123,14 @@ function parsePosts(html: string, channel: string): TelegramRawPost[] {
       const style = wrap.getAttribute('style') ?? '';
       const m = style.match(/background-image:url\(['"]?(.*?)['"]?\)/);
       if (m && m[1]) images.push(m[1]);
+      // Also check for higher-res data-src on the anchor
+      const anchor = wrap.querySelector('a[data-src]');
+      const dataSrc = anchor?.getAttribute('data-src') ?? '';
+      if (dataSrc && !images.includes(dataSrc)) images.push(dataSrc);
     });
     node.querySelectorAll('img').forEach((img) => {
-      const src = img.getAttribute('src') ?? '';
+      // Prefer data-src (higher resolution) over src (thumbnail)
+      const src = img.getAttribute('data-src') ?? img.getAttribute('src') ?? '';
       if (
         src.startsWith('http') &&
         !src.includes('telesco.pe/file') &&
@@ -210,14 +215,31 @@ export async function collectTelegramPosts(
   return all
     .filter((p) => (p.textMarkdown ?? '').trim() || (p.text ?? '').trim())
     .map((p) => {
+      let body = p.textMarkdown || p.text;
+
+      // Extract YouTube links and inject preview with thumbnail
+      const ytMatch = body.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/);
+      if (ytMatch && ytMatch[1]) {
+        const videoId = ytMatch[1];
+        const thumbUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+        const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        if (!body.includes('img.youtube.com')) {
+          body = body.replace(
+            ytMatch[0],
+            `[![YouTube](${thumbUrl})](${watchUrl})`,
+          );
+        }
+      }
+
       const media: PostMedia = {
         images: p.media.images,
         videos: p.media.videos,
       };
+      const hasMedia = media.images.length > 0 || media.videos.length > 0;
       return {
         number: Number(p.id),
         title: '',
-        body: p.textMarkdown || p.text,
+        body,
         url: p.url,
         createdAt: p.datetime ?? '1970-01-01T00:00:00.000Z',
         updatedAt: p.datetime ?? '1970-01-01T00:00:00.000Z',
@@ -228,7 +250,7 @@ export async function collectTelegramPosts(
         labels: [],
         slug: `tg-${p.id}`,
         sourceType: 'telegram' as const,
-        media: Object.keys(media.images).length || Object.keys(media.videos).length ? media : undefined,
+        media: hasMedia ? media : undefined,
       };
     });
 }
