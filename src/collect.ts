@@ -1,6 +1,5 @@
 /**
  * Collect posts from GitHub Discussions via GraphQL and author info via REST.
- * Also supports Telegram channel posts via telegram_posts.json.
  */
 
 import { graphql, rest } from './github.ts';
@@ -16,75 +15,6 @@ interface DiscussionNode {
   author: { login: string; url: string; avatarUrl: string } | null;
   labels: { nodes: Array<{ name: string }> };
   category: { name: string } | null;
-}
-
-/**
- * Fetch Telegram posts from the author's GitHub Pages (telegram_posts.json).
- * The author's razdfeed repo should have a GitHub Actions workflow that
- * collects Telegram posts and publishes them to GitHub Pages.
- */
-export async function fetchTelegramPosts(
-  owner: string,
-  channel: string,
-): Promise<Post[]> {
-  const url = `https://${owner}.github.io/razdfeed/telegram_posts.json?t=${Date.now()}`;
-  console.log(`  Fetching Telegram posts from ${url}`);
-
-  try {
-    const res = await fetch(url, { cache: 'no-store', headers: { 'User-Agent': 'razdfeed-collector' } });
-    if (!res.ok) {
-      console.log(`  Telegram posts not available (HTTP ${res.status})`);
-      return [];
-    }
-
-    const data = await res.json() as Array<{
-      id: string;
-      channel: string;
-      url: string;
-      text: string;
-      textMarkdown: string;
-      datetime: string | null;
-      views: string | null;
-      isEdited: boolean;
-      media: {
-        images: string[];
-        videos: string[];
-        files: Array<{ url: string; localPath: string | null; name: string | null; size: string | null; mime: string | null }>;
-      };
-    }>;
-
-    if (data.length > 0) {
-      const nullDates = data.filter((p) => !p.datetime).length;
-      if (nullDates > 0) console.log(`  ${nullDates} posts without datetime (using epoch)`);
-    }
-
-    return data
-      .filter((p) => (p.textMarkdown ?? '').trim() || (p.text ?? '').trim())
-      .map((p) => {
-        return {
-          number: Number(p.id),
-          title: '',
-          body: p.textMarkdown || p.text,
-          url: p.url,
-          createdAt: p.datetime ?? '1970-01-01T00:00:00.000Z',
-          updatedAt: p.datetime ?? '1970-01-01T00:00:00.000Z',
-          author: p.channel,
-          authorUrl: `https://t.me/${p.channel}`,
-          authorAvatar: '',
-          category: 'Telegram',
-          labels: [],
-          slug: `tg-${p.id}`,
-          sourceType: 'telegram' as const,
-          media: {
-            images: p.media?.images ?? [],
-            videos: p.media?.videos ?? [],
-          },
-        };
-      });
-  } catch (e) {
-    console.log(`  Failed to fetch Telegram posts: ${(e as Error).message}`);
-    return [];
-  }
 }
 
 /**

@@ -17,7 +17,8 @@
  */
 
 import { discoverAuthors } from './src/discover.ts';
-import { fetchAuthorInfo, fetchDiscussions, fetchTelegramPosts, resolveSourceRepo } from './src/collect.ts';
+import { fetchAuthorInfo, fetchDiscussions, resolveSourceRepo } from './src/collect.ts';
+import { collectTelegramPosts } from './src/telegram.ts';
 import { LocalSink, RemoteSink, type Sink } from './src/sink.ts';
 import type {
   AuthorEntry,
@@ -104,7 +105,14 @@ async function main() {
     // Also collect Telegram posts if configured
     let telegramPosts: typeof posts = [];
     if (config.telegram?.channel) {
-      telegramPosts = await fetchTelegramPosts(owner, config.telegram.channel);
+      console.log(`  Collecting Telegram posts from t.me/s/${config.telegram.channel} ...`);
+      telegramPosts = await collectTelegramPosts(config.telegram.channel, {
+        maxPages: 20,
+        delayMs: 400,
+        onProgress: (count, lastId) => {
+          console.log(`    collected ${count} posts, oldest id so far: ${lastId}`);
+        },
+      });
       console.log(`  ${telegramPosts.length} telegram posts collected`);
     }
 

@@ -32,18 +32,10 @@
 #
 #   discussions: https://github.com/yourname/yourname/discussions/categories/announcements
 #
-# For Telegram, use the channel URL:
+# For Telegram, use the channel URL — the collector will fetch posts
+# directly from t.me/s/<channel>:
 #
 #   telegram: https://t.me/yourchannel
-#
-# ── Telegram source ───────────────────────────────────────────────────────
-#
-# The fetcher-collector will fetch `telegram_posts.json` from your
-# `yourname.github.io/razdfeed` GitHub Pages URL.
-#
-# You need a GitHub Actions workflow in your razdfeed repo that uses
-# razdfeed/razdfeed-telegram-fetcher-action to collect Telegram posts and
-# publish them to GitHub Pages.
 
 name: "My Blog"
 description: "Персональный блог на GitHub Discussions"
