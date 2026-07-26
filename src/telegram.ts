@@ -242,6 +242,16 @@ export async function collectTelegramPosts(
 
   return all
     .filter((p) => (p.textMarkdown ?? '').trim() || (p.text ?? '').trim())
+    .filter((p) => {
+      const t = (p.text ?? '').trim();
+      const servicePosts = [
+        'Channel photo updated',
+        'Channel name was changed',
+        'Channel created',
+        'Channel description was changed',
+      ];
+      return !servicePosts.some((s) => t === s || t.startsWith(s));
+    })
     .map((p) => {
       let body = p.textMarkdown || p.text;
 
