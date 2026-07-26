@@ -1,5 +1,6 @@
 /**
  * Collect posts from GitHub Discussions via GraphQL and author info via REST.
+ * Also supports Telegram channel posts via telegram_posts.json.
  */
 
 import { graphql, rest } from './github.ts';
@@ -15,6 +16,61 @@ interface DiscussionNode {
   author: { login: string; url: string; avatarUrl: string } | null;
   labels: { nodes: Array<{ name: string }> };
   category: { name: string } | null;
+}
+
+/**
+ * Fetch Telegram posts from the author's GitHub Pages (telegram_posts.json).
+ * The author's razdfeed repo should have a GitHub Actions workflow that
+ * collects Telegram posts and publishes them to GitHub Pages.
+ */
+export async function fetchTelegramPosts(
+  owner: string,
+  channel: string,
+): Promise<Post[]> {
+  const url = `https://${owner}.github.io/razdfeed/telegram_posts.json`;
+  console.log(`  Fetching Telegram posts from ${url}`);
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.log(`  Telegram posts not available (HTTP ${res.status})`);
+      return [];
+    }
+
+    const data = await res.json() as Array<{
+      id: string;
+      channel: string;
+      url: string;
+      text: string;
+      textMarkdown: string;
+      datetime: string | null;
+      views: string | null;
+      isEdited: boolean;
+      media: {
+        images: string[];
+        videos: string[];
+        files: Array<{ url: string; localPath: string | null; name: string | null; size: string | null; mime: string | null }>;
+      };
+    }>;
+
+    return data.map((p) => ({
+      number: Number(p.id),
+      title: (p.text ?? '').split('\n')[0]?.slice(0, 80) || `Post ${p.id}`,
+      body: p.textMarkdown || p.text,
+      url: p.url,
+      createdAt: p.datetime ?? new Date().toISOString(),
+      updatedAt: p.datetime ?? new Date().toISOString(),
+      author: p.channel,
+      authorUrl: `https://t.me/${p.channel}`,
+      authorAvatar: '',
+      category: 'Telegram',
+      labels: [],
+      slug: `tg-${p.id}`,
+    }));
+  } catch (e) {
+    console.log(`  Failed to fetch Telegram posts: ${(e as Error).message}`);
+    return [];
+  }
 }
 
 /**

@@ -17,7 +17,7 @@
  */
 
 import { discoverAuthors } from './src/discover.ts';
-import { fetchAuthorInfo, fetchDiscussions, resolveSourceRepo } from './src/collect.ts';
+import { fetchAuthorInfo, fetchDiscussions, fetchTelegramPosts, resolveSourceRepo } from './src/collect.ts';
 import { LocalSink, RemoteSink, type Sink } from './src/sink.ts';
 import type {
   AuthorEntry,
@@ -91,14 +91,25 @@ async function main() {
     if (!config) continue;
 
     const source = resolveSourceRepo(config);
-    console.log(`\nCollecting ${owner} (source: ${source.owner}/${source.repo})...`);
+    const hasTelegram = !!config.telegram?.channel;
+    console.log(`\nCollecting ${owner} (source: ${source.owner}/${source.repo}${hasTelegram ? `, telegram: ${config.telegram!.channel}` : ''})...`);
 
     const [posts, authorInfo] = await Promise.all([
       fetchDiscussions(source.owner, source.repo, config),
       fetchAuthorInfo(owner),
     ]);
 
-    console.log(`  ${posts.length} posts collected`);
+    console.log(`  ${posts.length} discussion posts collected`);
+
+    // Also collect Telegram posts if configured
+    let telegramPosts: typeof posts = [];
+    if (config.telegram?.channel) {
+      telegramPosts = await fetchTelegramPosts(owner, config.telegram.channel);
+      console.log(`  ${telegramPosts.length} telegram posts collected`);
+    }
+
+    const allPosts = [...posts, ...telegramPosts];
+    console.log(`  total: ${allPosts.length} posts`);
 
     const sourceRepo = `${source.owner}/${source.repo}`;
     console.log(`  source: ${sourceRepo}`);
@@ -114,12 +125,12 @@ async function main() {
       blog: authorInfo?.blog ?? null,
       repo: config.sourceRepo ?? `${owner}/${repo}`,
       sourceRepo,
-      postCount: posts.length,
-      latestPostAt: posts[0]?.createdAt ?? null,
+      postCount: allPosts.length,
+      latestPostAt: allPosts[0]?.createdAt ?? null,
     });
 
     // Enrich posts with author info for the global feed
-    for (const post of posts) {
+    for (const post of allPosts) {
       allFeedPosts.push({
         ...post,
         authorLogin: owner,
@@ -128,8 +139,8 @@ async function main() {
       });
     }
 
-    if (posts[0]) {
-      console.log(`  Latest: "${posts[0].title}" (${posts[0].createdAt})`);
+    if (allPosts[0]) {
+      console.log(`  Latest: "${allPosts[0].title}" (${allPosts[0].createdAt})`);
     }
   }
 

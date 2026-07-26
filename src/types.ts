@@ -42,6 +42,9 @@ export interface BlogConfig {
   category: string;
   labels: string[];
   sourceRepo?: string;
+  telegram?: {
+    channel: string;
+  };
 }
 
 export interface DiscoveredAuthor {

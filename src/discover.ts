@@ -77,6 +77,7 @@ export function parseRazdfeedConfig(
 
   const lines = text.split('\n');
   let inLabels = false;
+  let inTelegram = false;
 
   for (const raw of lines) {
     const line = raw.trimEnd();
@@ -89,6 +90,20 @@ export function parseRazdfeedConfig(
       continue;
     }
     inLabels = false;
+
+    // nested key under telegram:
+    if (inTelegram && /^\s+\w/.test(raw)) {
+      const tm = raw.match(/^\s+(\w[\w-]*)\s*:\s*(.*)$/);
+      if (tm && tm[1] && tm[2]) {
+        const tk = tm[1].trim();
+        const tv = tm[2].trim().replace(/^["']|["']$/g, '');
+        if (tk === 'channel') {
+          config.telegram = { channel: tv };
+        }
+      }
+      continue;
+    }
+    inTelegram = false;
 
     const m = line.match(/^(\w[\w-]*)\s*:\s*(.*)$/);
     if (!m) continue;
@@ -110,6 +125,13 @@ export function parseRazdfeedConfig(
         break;
       case 'repo':
         config.sourceRepo = val;
+        break;
+      case 'telegram':
+        inTelegram = true;
+        if (val && val !== 'razdfeed') {
+          // inline: telegram: dealenxdev (unlikely but handle it)
+          config.telegram = { channel: val };
+        }
         break;
       case 'labels':
         inLabels = true;
@@ -144,7 +166,8 @@ export async function discoverAuthors(): Promise<DiscoveredAuthor[]> {
       continue;
     }
     const config = parseRazdfeedConfig(text, owner, repo);
-    console.log(`  ${owner}/${repo}: ${config.name} (repo=${config.sourceRepo ?? owner + '/' + repo})`);
+    const tg = config.telegram ? `, telegram: ${config.telegram.channel}` : '';
+    console.log(`  ${owner}/${repo}: ${config.name} (repo=${config.sourceRepo ?? owner + '/' + repo}${tg})`);
     authors.push({ owner, repo, config });
   }
 
