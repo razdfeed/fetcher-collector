@@ -73,21 +73,38 @@ export async function fetchDiscussions(
     cursor = discussions.pageInfo.endCursor;
   }
 
-  let posts = all.map((d) => ({
-    number: d.number,
-    title: d.title,
-    body: d.body,
-    url: d.url,
-    createdAt: d.createdAt,
-    updatedAt: d.updatedAt,
-    author: d.author?.login ?? 'unknown',
-    authorUrl: d.author?.url ?? '',
-    authorAvatar: d.author?.avatarUrl ?? '',
-    category: d.category?.name ?? '',
-    labels: d.labels.nodes.map((l) => l.name),
-    slug: String(d.number),
-    sourceType: 'github' as const,
-  }));
+  let posts = all.map((d) => {
+    const body = d.body ?? '';
+
+    // Extract images from GitHub Discussions body (user-attachments, etc.)
+    const images: string[] = [];
+    const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+    let imgMatch;
+    while ((imgMatch = imgRegex.exec(body)) !== null) {
+      const src = imgMatch[1] ?? '';
+      if (src.startsWith('http') && !images.includes(src)) {
+        images.push(src);
+      }
+    }
+
+    const hasMedia = images.length > 0;
+    return {
+      number: d.number,
+      title: d.title,
+      body,
+      url: d.url,
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+      author: d.author?.login ?? 'unknown',
+      authorUrl: d.author?.url ?? '',
+      authorAvatar: d.author?.avatarUrl ?? '',
+      category: d.category?.name ?? '',
+      labels: d.labels.nodes.map((l) => l.name),
+      slug: String(d.number),
+      sourceType: 'github' as const,
+      media: hasMedia ? { images, videos: [] } : undefined,
+    };
+  });
 
   // Filter by category if configured and not the default
   if (config.category && config.category !== 'Announcements') {
