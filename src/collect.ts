@@ -53,6 +53,10 @@ export async function fetchTelegramPosts(
       };
     }>;
 
+    if (data.length > 0) {
+      console.log(`  First post datetime: ${JSON.stringify(data[0]?.datetime)}, total: ${data.length}`);
+    }
+
     return data
       .filter((p) => (p.textMarkdown ?? '').trim() || (p.text ?? '').trim())
       .map((p) => {
