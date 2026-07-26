@@ -55,7 +55,7 @@ export async function fetchTelegramPosts(
 
     if (data.length > 0) {
       const nullDates = data.filter((p) => !p.datetime).length;
-      console.log(`  First post datetime: ${JSON.stringify(data[0]?.datetime)}, total: ${data.length}, null dates: ${nullDates}`);
+      if (nullDates > 0) console.log(`  ${nullDates} posts without datetime (using epoch)`);
     }
 
     return data
