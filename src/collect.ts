@@ -54,7 +54,8 @@ export async function fetchTelegramPosts(
     }>;
 
     if (data.length > 0) {
-      console.log(`  First post datetime: ${JSON.stringify(data[0]?.datetime)}, total: ${data.length}`);
+      const nullDates = data.filter((p) => !p.datetime).length;
+      console.log(`  First post datetime: ${JSON.stringify(data[0]?.datetime)}, total: ${data.length}, null dates: ${nullDates}`);
     }
 
     return data
