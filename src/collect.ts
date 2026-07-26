@@ -61,11 +61,9 @@ export async function fetchTelegramPosts(
     return data
       .filter((p) => (p.textMarkdown ?? '').trim() || (p.text ?? '').trim())
       .map((p) => {
-        const firstLine = (p.text ?? '').split('\n')[0]?.trim() ?? '';
-        const title = firstLine.slice(0, 80) || `Post ${p.id}`;
         return {
           number: Number(p.id),
-          title,
+          title: '',
           body: p.textMarkdown || p.text,
           url: p.url,
           createdAt: p.datetime ?? '1970-01-01T00:00:00.000Z',
