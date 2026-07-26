@@ -29,7 +29,7 @@ export async function graphql<T>(
     throw new Error(`GitHub GraphQL ${res.status}: ${body}`);
   }
 
-  const json = await res.json();
+  const json = (await res.json()) as { errors?: unknown; data?: T };
   if (json.errors) {
     throw new Error(`GitHub GraphQL errors: ${JSON.stringify(json.errors)}`);
   }
