@@ -245,26 +245,29 @@ export async function collectTelegramPosts(
     .map((p) => {
       let body = p.textMarkdown || p.text;
 
-      // Extract YouTube links and inject preview with thumbnail
-      // First, handle markdown links: [text](https://youtube.com/watch?v=XXX)
-      body = body.replace(
-        /\[([^\]]*)\]\((https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})[^)]*\)/g,
-        (_m, text, _proto, id) => {
-          const thumb = `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
-          const url = `https://www.youtube.com/watch?v=${id}`;
-          return `[![${text || 'YouTube'}](${thumb})](${url})`;
-        },
-      );
-      // Then, handle bare YouTube URLs (not inside markdown links)
-      const ytMatch = body.match(/(?<![(\[])(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/);
-      if (ytMatch && ytMatch[1] && !body.includes('img.youtube.com/vi/' + ytMatch[1])) {
-        const videoId = ytMatch[1];
-        const thumbUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-        const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      // If there's a link preview, skip YouTube thumbnail injection —
+      // the LinkPreviewCard already shows the preview image.
+      if (!p.linkPreview) {
+        // First, handle markdown links: [text](https://youtube.com/watch?v=XXX)
         body = body.replace(
-          ytMatch[0],
-            `\n\n[![YouTube](${thumbUrl})](${watchUrl})\n\n`,
+          /\[([^\]]*)\]\((https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})[^)]*\)/g,
+          (_m, text, _proto, id) => {
+            const thumb = `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
+            const url = `https://www.youtube.com/watch?v=${id}`;
+            return `[![${text || 'YouTube'}](${thumb})](${url})`;
+          },
         );
+        // Then, handle bare YouTube URLs (not inside markdown links)
+        const ytMatch = body.match(/(?<![(\[])(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/);
+        if (ytMatch && ytMatch[1] && !body.includes('img.youtube.com/vi/' + ytMatch[1])) {
+          const videoId = ytMatch[1];
+          const thumbUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+          const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+          body = body.replace(
+            ytMatch[0],
+              `\n\n[![YouTube](${thumbUrl})](${watchUrl})\n\n`,
+          );
+        }
       }
 
       const media: PostMedia = {
