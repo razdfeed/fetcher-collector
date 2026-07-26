@@ -53,20 +53,27 @@ export async function fetchTelegramPosts(
       };
     }>;
 
-    return data.map((p) => ({
-      number: Number(p.id),
-      title: (p.text ?? '').split('\n')[0]?.slice(0, 80) || `Post ${p.id}`,
-      body: p.textMarkdown || p.text,
-      url: p.url,
-      createdAt: p.datetime ?? new Date().toISOString(),
-      updatedAt: p.datetime ?? new Date().toISOString(),
-      author: p.channel,
-      authorUrl: `https://t.me/${p.channel}`,
-      authorAvatar: '',
-      category: 'Telegram',
-      labels: [],
-      slug: `tg-${p.id}`,
-    }));
+    return data
+      .filter((p) => (p.textMarkdown ?? '').trim() || (p.text ?? '').trim())
+      .map((p) => {
+        const firstLine = (p.text ?? '').split('\n')[0]?.trim() ?? '';
+        const title = firstLine.slice(0, 80) || `Post ${p.id}`;
+        return {
+          number: Number(p.id),
+          title,
+          body: p.textMarkdown || p.text,
+          url: p.url,
+          createdAt: p.datetime ?? new Date().toISOString(),
+          updatedAt: p.datetime ?? new Date().toISOString(),
+          author: p.channel,
+          authorUrl: `https://t.me/${p.channel}`,
+          authorAvatar: '',
+          category: 'Telegram',
+          labels: [],
+          slug: `tg-${p.id}`,
+          sourceType: 'telegram' as const,
+        };
+      });
   } catch (e) {
     console.log(`  Failed to fetch Telegram posts: ${(e as Error).message}`);
     return [];
@@ -142,6 +149,7 @@ export async function fetchDiscussions(
     category: d.category?.name ?? '',
     labels: d.labels.nodes.map((l) => l.name),
     slug: String(d.number),
+    sourceType: 'github' as const,
   }));
 
   // Filter by category if configured and not the default

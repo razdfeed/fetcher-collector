@@ -21,6 +21,7 @@ export interface Post {
   category: string;
   labels: string[];
   slug: string;
+  sourceType: 'github' | 'telegram';
 }
 
 export interface AuthorInfo {
@@ -69,6 +70,7 @@ export interface FeedPost {
   authorLogin: string;
   /** Repository this post was fetched from (e.g. "dealenx/dealenx"). */
   sourceRepo: string;
+  sourceType: 'github' | 'telegram';
   category: string;
   labels: string[];
   slug: string;
