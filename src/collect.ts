@@ -31,7 +31,7 @@ export async function fetchTelegramPosts(
   console.log(`  Fetching Telegram posts from ${url}`);
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: 'no-store', headers: { 'User-Agent': 'razdfeed-collector' } });
     if (!res.ok) {
       console.log(`  Telegram posts not available (HTTP ${res.status})`);
       return [];
