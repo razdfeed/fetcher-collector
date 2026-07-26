@@ -126,11 +126,28 @@ export function parseRazdfeedConfig(
       case 'repo':
         config.sourceRepo = val;
         break;
+      case 'discussions':
+        // discussions: https://github.com/owner/repo/discussions/categories/announcements
+        if (val) {
+          const dm = val.match(/github\.com\/([^/]+)\/([^/]+)\/discussions\/categories\/(.+)/);
+          if (dm && dm[1] && dm[2]) {
+            config.sourceRepo = `${dm[1]}/${dm[2]}`;
+            if (dm[3]) config.category = dm[3];
+          }
+        }
+        inTelegram = false;
+        break;
       case 'telegram':
-        inTelegram = true;
-        if (val && val !== 'razdfeed') {
-          // inline: telegram: dealenxdev (unlikely but handle it)
-          config.telegram = { channel: val };
+        if (val) {
+          // telegram: https://t.me/dealenxdev
+          const tgMatch = val.match(/t\.me\/(.+)/);
+          if (tgMatch && tgMatch[1]) {
+            config.telegram = { channel: tgMatch[1] };
+          } else {
+            config.telegram = { channel: val };
+          }
+        } else {
+          inTelegram = true;
         }
         break;
       case 'labels':

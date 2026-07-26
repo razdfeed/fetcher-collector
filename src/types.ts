@@ -45,6 +45,7 @@ export interface BlogConfig {
   telegram?: {
     channel: string;
   };
+  discussions?: string;
 }
 
 export interface DiscoveredAuthor {
