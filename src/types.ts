@@ -8,6 +8,11 @@
  * @see razdfeed.github.io frontend
  */
 
+export interface PostMedia {
+  images: string[];
+  videos: string[];
+}
+
 export interface Post {
   number: number;
   title: string;
@@ -22,6 +27,7 @@ export interface Post {
   labels: string[];
   slug: string;
   sourceType: 'github' | 'telegram';
+  media?: PostMedia;
 }
 
 export interface AuthorInfo {
@@ -74,6 +80,7 @@ export interface FeedPost {
   category: string;
   labels: string[];
   slug: string;
+  media?: PostMedia;
 }
 
 /** One author entry in authors.json. */

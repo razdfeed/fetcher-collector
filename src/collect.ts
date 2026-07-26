@@ -75,6 +75,10 @@ export async function fetchTelegramPosts(
           labels: [],
           slug: `tg-${p.id}`,
           sourceType: 'telegram' as const,
+          media: {
+            images: p.media?.images ?? [],
+            videos: p.media?.videos ?? [],
+          },
         };
       });
   } catch (e) {
