@@ -51,8 +51,17 @@ turndown.addRule('clean-links', {
   },
 });
 
+function preprocessHtml(html: string): string {
+  // Replace tg-emoji with its fallback emoji text from <b> tag
+  return html.replace(/<tg-emoji[^>]*>([\s\S]*?)<\/tg-emoji>/g, (_m, inner) => {
+    const bMatch = inner.match(/<b>([^<]+)<\/b>/);
+    return bMatch ? bMatch[1] : '';
+  });
+}
+
 function htmlToMarkdown(html: string): string {
-  let md = turndown.turndown(html);
+  const cleaned = preprocessHtml(html);
+  let md = turndown.turndown(cleaned);
   md = md.replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
   return md;
 }
@@ -95,6 +104,7 @@ interface TelegramRawPost {
     videos: string[];
   };
   linkPreview?: LinkPreview;
+  forwardedFrom: string | null;
 }
 
 function parsePosts(html: string, channel: string): TelegramRawPost[] {
@@ -107,7 +117,15 @@ function parsePosts(html: string, channel: string): TelegramRawPost[] {
     const id = dataPost.split('/')[1] ?? '';
     const url = `https://t.me/${dataPost}`;
 
-    const textNode = node.querySelector('.tgme_widget_message_text');
+    // Detect repost (forwarded message)
+    let forwardedFrom: string | null = null;
+    const fwdEl = node.querySelector('.tgme_widget_message_forwarded_from');
+    if (fwdEl) {
+      forwardedFrom = fwdEl.textContent?.replace(/^Forwarded from\s*/i, '').trim() || 'unknown';
+    }
+
+    // Use .js-message_text (the actual post text), not .js-message_reply_text (quoted reply)
+    const textNode = node.querySelector('.js-message_text');
     let text = '';
     let textMarkdown = '';
     if (textNode) {
@@ -182,6 +200,7 @@ function parsePosts(html: string, channel: string): TelegramRawPost[] {
       datetime,
       media: { images, videos },
       linkPreview: linkPreview ?? undefined,
+      forwardedFrom,
     });
   }
 
@@ -301,6 +320,7 @@ export async function collectTelegramPosts(
         sourceType: 'telegram' as const,
         media: hasMedia ? media : undefined,
         linkPreview: p.linkPreview,
+        forwardedFrom: p.forwardedFrom,
       };
     });
 }

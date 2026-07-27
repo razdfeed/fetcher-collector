@@ -37,6 +37,7 @@ export interface Post {
   sourceType: 'github' | 'telegram';
   media?: PostMedia;
   linkPreview?: LinkPreview;
+  forwardedFrom?: string | null;
 }
 
 export interface AuthorInfo {
@@ -91,6 +92,7 @@ export interface FeedPost {
   slug: string;
   media?: PostMedia;
   linkPreview?: LinkPreview;
+  forwardedFrom?: string | null;
 }
 
 /** One author entry in authors.json. */
