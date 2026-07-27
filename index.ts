@@ -17,7 +17,7 @@
  */
 
 import { discoverAuthors } from './src/discover.ts';
-import { fetchAuthorInfo, fetchDiscussions, resolveSourceRepo } from './src/collect.ts';
+import { fetchAuthorInfo, fetchDiscussions } from './src/collect.ts';
 import { collectTelegramPosts } from './src/telegram.ts';
 import { LocalSink, RemoteSink, type Sink } from './src/sink.ts';
 import type {
@@ -91,64 +91,91 @@ async function main() {
   for (const { owner, repo, config } of authors) {
     if (!config) continue;
 
-    const source = resolveSourceRepo(config);
-    const hasTelegram = !!config.telegram?.channel;
-    console.log(`\nCollecting ${owner} (source: ${source.owner}/${source.repo}${hasTelegram ? `, telegram: ${config.telegram!.channel}` : ''})...`);
+    console.log(`\nCollecting ${owner} (${config.sources.length} source(s))...`);
 
-    const [posts, authorInfo] = await Promise.all([
-      fetchDiscussions(source.owner, source.repo, config),
-      fetchAuthorInfo(owner),
-    ]);
+    const authorInfo = await fetchAuthorInfo(owner);
+    const authorName = config.name || authorInfo?.name || owner;
 
-    console.log(`  ${posts.length} discussion posts collected`);
+    for (const source of config.sources) {
+      if (source.type === 'github' && source.repo) {
+        const [srcOwner, srcRepo] = source.repo.split('/');
+        if (!srcOwner || !srcRepo) {
+          console.log(`  Skipping invalid github source: ${source.repo}`);
+          continue;
+        }
 
-    // Also collect Telegram posts if configured
-    let telegramPosts: typeof posts = [];
-    if (config.telegram?.channel) {
-      console.log(`  Collecting Telegram posts from t.me/s/${config.telegram.channel} ...`);
-      telegramPosts = await collectTelegramPosts(config.telegram.channel, {
-        maxPages: 20,
-        delayMs: 400,
-        onProgress: (count, lastId) => {
-          console.log(`    collected ${count} posts, oldest id so far: ${lastId}`);
-        },
-      });
-      console.log(`  ${telegramPosts.length} telegram posts collected`);
-    }
+        console.log(`  Collecting GitHub discussions from ${source.repo} ...`);
+        const posts = await fetchDiscussions(srcOwner, srcRepo, {
+          ...config,
+          category: source.category ?? config.category,
+        });
+        console.log(`    ${posts.length} discussion posts collected`);
 
-    const allPosts = [...posts, ...telegramPosts];
-    console.log(`  total: ${allPosts.length} posts`);
+        const sourceRepo = source.repo;
+        authorEntries.push({
+          login: owner,
+          name: authorName,
+          description: config.description,
+          language: config.language,
+          avatar: authorInfo?.avatar_url ?? '',
+          bio: authorInfo?.bio ?? null,
+          htmlUrl: authorInfo?.html_url ?? `https://github.com/${owner}`,
+          blog: authorInfo?.blog ?? null,
+          repo: `${owner}/${repo}`,
+          sourceRepo,
+          sourceType: 'github',
+          postCount: posts.length,
+          latestPostAt: posts[0]?.createdAt ?? null,
+        });
 
-    const sourceRepo = `${source.owner}/${source.repo}`;
-    console.log(`  source: ${sourceRepo}`);
+        for (const post of posts) {
+          allFeedPosts.push({
+            ...post,
+            authorLogin: owner,
+            authorName,
+            sourceRepo,
+          });
+        }
+      }
 
-    authorEntries.push({
-      login: owner,
-      name: config.name,
-      description: config.description,
-      language: config.language,
-      avatar: authorInfo?.avatar_url ?? '',
-      bio: authorInfo?.bio ?? null,
-      htmlUrl: authorInfo?.html_url ?? `https://github.com/${owner}`,
-      blog: authorInfo?.blog ?? null,
-      repo: config.sourceRepo ?? `${owner}/${repo}`,
-      sourceRepo,
-      postCount: allPosts.length,
-      latestPostAt: allPosts[0]?.createdAt ?? null,
-    });
+      if (source.type === 'telegram' && source.channel) {
+        const channel = source.channel;
+        console.log(`  Collecting Telegram posts from t.me/s/${channel} ...`);
+        const posts = await collectTelegramPosts(channel, {
+          maxPages: 20,
+          delayMs: 400,
+          onProgress: (count, lastId) => {
+            console.log(`    collected ${count} posts, oldest id so far: ${lastId}`);
+          },
+        });
+        console.log(`    ${posts.length} telegram posts collected`);
 
-    // Enrich posts with author info for the global feed
-    for (const post of allPosts) {
-      allFeedPosts.push({
-        ...post,
-        authorLogin: owner,
-        authorName: authorInfo?.name ?? null,
-        sourceRepo,
-      });
-    }
+        const sourceRepo = `t.me/${channel}`;
+        authorEntries.push({
+          login: channel,
+          name: authorName,
+          description: config.description,
+          language: config.language,
+          avatar: authorInfo?.avatar_url ?? '',
+          bio: authorInfo?.bio ?? null,
+          htmlUrl: `https://t.me/${channel}`,
+          blog: authorInfo?.blog ?? null,
+          repo: `${owner}/${repo}`,
+          sourceRepo,
+          sourceType: 'telegram',
+          postCount: posts.length,
+          latestPostAt: posts[0]?.createdAt ?? null,
+        });
 
-    if (allPosts[0]) {
-      console.log(`  Latest: "${allPosts[0].title}" (${allPosts[0].createdAt})`);
+        for (const post of posts) {
+          allFeedPosts.push({
+            ...post,
+            authorLogin: channel,
+            authorName,
+            sourceRepo,
+          });
+        }
+      }
     }
   }
 

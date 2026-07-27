@@ -38,6 +38,7 @@ export interface Post {
   media?: PostMedia;
   linkPreview?: LinkPreview;
   forwardedFrom?: string | null;
+  forwardedFromUrl?: string | null;
 }
 
 export interface AuthorInfo {
@@ -49,6 +50,17 @@ export interface AuthorInfo {
   blog: string | null;
 }
 
+export interface Source {
+  type: 'github' | 'telegram';
+  url: string;
+  /** GitHub owner/repo (for type=github). */
+  repo?: string;
+  /** GitHub discussions category (for type=github). */
+  category?: string;
+  /** Telegram channel username (for type=telegram). */
+  channel?: string;
+}
+
 /** Parsed .razdfeed.yml (minimal hand-parse, no YAML lib needed). */
 export interface BlogConfig {
   owner: string;
@@ -58,10 +70,12 @@ export interface BlogConfig {
   language: string;
   category: string;
   labels: string[];
+  sources: Source[];
+  /** Legacy: explicit GitHub repo override. */
   sourceRepo?: string;
-  telegram?: {
-    channel: string;
-  };
+  /** Legacy: telegram channel. */
+  telegram?: { channel: string };
+  /** Legacy: discussions URL. */
   discussions?: string;
 }
 
@@ -93,6 +107,7 @@ export interface FeedPost {
   media?: PostMedia;
   linkPreview?: LinkPreview;
   forwardedFrom?: string | null;
+  forwardedFromUrl?: string | null;
 }
 
 /** One author entry in authors.json. */
@@ -107,8 +122,10 @@ export interface AuthorEntry {
   blog: string | null;
   /** Repository where the author's .razdfeed.yml lives (e.g. "dealenx/razdfeed"). */
   repo: string;
-  /** Repository where posts are actually fetched from (e.g. "dealenx/dealenx"). */
+  /** Source this author entry represents (e.g. "dealenx/dealenx" or "t.me/dealenxdev"). */
   sourceRepo: string;
+  /** Source type for this entry. */
+  sourceType: 'github' | 'telegram';
   postCount: number;
   latestPostAt: string | null;
 }

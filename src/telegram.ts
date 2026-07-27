@@ -105,6 +105,7 @@ interface TelegramRawPost {
   };
   linkPreview?: LinkPreview;
   forwardedFrom: string | null;
+  forwardedFromUrl: string | null;
 }
 
 function parsePosts(html: string, channel: string): TelegramRawPost[] {
@@ -119,9 +120,14 @@ function parsePosts(html: string, channel: string): TelegramRawPost[] {
 
     // Detect repost (forwarded message)
     let forwardedFrom: string | null = null;
+    let forwardedFromUrl: string | null = null;
     const fwdEl = node.querySelector('.tgme_widget_message_forwarded_from');
     if (fwdEl) {
       forwardedFrom = fwdEl.textContent?.replace(/^Forwarded from\s*/i, '').trim() || 'unknown';
+      const fwdLink = fwdEl.querySelector('a[href^="https://t.me/"]');
+      if (fwdLink) {
+        forwardedFromUrl = fwdLink.getAttribute('href');
+      }
     }
 
     // Use .js-message_text (the actual post text), not .js-message_reply_text (quoted reply)
@@ -201,6 +207,7 @@ function parsePosts(html: string, channel: string): TelegramRawPost[] {
       media: { images, videos },
       linkPreview: linkPreview ?? undefined,
       forwardedFrom,
+      forwardedFromUrl,
     });
   }
 
@@ -322,6 +329,7 @@ export async function collectTelegramPosts(
         media: hasMedia ? media : undefined,
         linkPreview: p.linkPreview,
         forwardedFrom: p.forwardedFrom,
+        forwardedFromUrl: p.forwardedFromUrl,
       };
     });
 }

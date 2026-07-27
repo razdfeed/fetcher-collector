@@ -4,7 +4,7 @@
 
 import { graphql } from './github.ts';
 import { fetchRawFile } from './github.ts';
-import type { BlogConfig, DiscoveredAuthor } from './types.ts';
+import type { BlogConfig, DiscoveredAuthor, Source } from './types.ts';
 
 /**
  * Search for repositories named exactly "razdfeed" via GraphQL.
@@ -60,6 +60,29 @@ export async function discoverRazdfeedRepos(): Promise<
  *     - devops
  *   repo: dealenx/blog-discussions
  */
+function normalizeUrl(url: string): string {
+  const trimmed = url.trim().replace(/^["']|["']$/g, '');
+  return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+}
+
+function parseGithubDiscussionsUrl(url: string): { repo: string; category?: string } | null {
+  const m = url.match(/github\.com\/([^/]+)\/([^/]+)\/discussions\/categories\/(.+)/);
+  if (!m) return null;
+  return { repo: `${m[1]}/${m[2]}`, category: m[3] };
+}
+
+function parseTelegramUrl(url: string): { channel: string } | null {
+  const m = url.match(/t\.me\/(.+)/);
+  if (!m) return null;
+  return { channel: m[1] };
+}
+
+function githubUrlFromRepo(repo: string, category?: string): string {
+  const [owner, name] = repo.split('/');
+  if (!owner || !name) return `https://github.com/${repo}`;
+  return `https://github.com/${owner}/${name}/discussions/categories/${category ?? 'announcements'}`;
+}
+
 export function parseRazdfeedConfig(
   text: string,
   owner: string,
@@ -73,11 +96,14 @@ export function parseRazdfeedConfig(
     language: 'ru',
     category: 'Announcements',
     labels: [],
+    sources: [],
   };
 
   const lines = text.split('\n');
   let inLabels = false;
   let inTelegram = false;
+  let inSources = false;
+  let currentSource: Partial<Source> | null = null;
 
   for (const raw of lines) {
     const line = raw.trimEnd();
@@ -105,6 +131,29 @@ export function parseRazdfeedConfig(
     }
     inTelegram = false;
 
+    // item under sources:
+    if (inSources) {
+      const itemMatch = raw.match(/^\s+-\s*(.*)$/);
+      if (itemMatch) {
+        currentSource = { type: undefined as any };
+        config.sources.push(currentSource as Source);
+        continue;
+      }
+      const nestedMatch = raw.match(/^\s+(\w[\w-]*)\s*:\s*(.*)$/);
+      if (nestedMatch && currentSource) {
+        const key = nestedMatch[1].trim();
+        const val = nestedMatch[2].trim().replace(/^["']|["']$/g, '');
+        if (key === 'type') currentSource.type = val as 'github' | 'telegram';
+        if (key === 'url') currentSource.url = normalizeUrl(val);
+        if (key === 'repo') currentSource.repo = val;
+        if (key === 'category') currentSource.category = val;
+        if (key === 'channel') currentSource.channel = val;
+        continue;
+      }
+      inSources = false;
+      currentSource = null;
+    }
+
     const m = line.match(/^(\w[\w-]*)\s*:\s*(.*)$/);
     if (!m || !m[1]) continue;
     const key = m[1].trim();
@@ -126,33 +175,41 @@ export function parseRazdfeedConfig(
       case 'repo':
         config.sourceRepo = val;
         break;
-      case 'discussions':
+      case 'discussions': {
         // discussions: https://github.com/owner/repo/discussions/categories/announcements
-        if (val) {
-          const dm = val.match(/github\.com\/([^/]+)\/([^/]+)\/discussions\/categories\/(.+)/);
-          if (dm && dm[1] && dm[2]) {
-            config.sourceRepo = `${dm[1]}/${dm[2]}`;
-            if (dm[3]) {
-              // Normalize: GitHub category names are capitalized (e.g. "Announcements")
-              const cat = dm[3];
-              config.category = cat.charAt(0).toUpperCase() + cat.slice(1);
-            }
+        const parsed = parseGithubDiscussionsUrl(val);
+        if (parsed) {
+          config.sourceRepo = parsed.repo;
+          if (parsed.category) {
+            const cat = parsed.category;
+            config.category = cat.charAt(0).toUpperCase() + cat.slice(1);
           }
+          config.sources.push({
+            type: 'github',
+            url: normalizeUrl(val),
+            repo: parsed.repo,
+            category: parsed.category,
+          });
         }
         inTelegram = false;
         break;
-      case 'telegram':
-        if (val) {
-          // telegram: https://t.me/dealenxdev
-          const tgMatch = val.match(/t\.me\/(.+)/);
-          if (tgMatch && tgMatch[1]) {
-            config.telegram = { channel: tgMatch[1] };
-          } else {
-            config.telegram = { channel: val };
-          }
-        } else {
+      }
+      case 'telegram': {
+        const parsed = parseTelegramUrl(val);
+        if (parsed) {
+          config.telegram = parsed;
+          config.sources.push({
+            type: 'telegram',
+            url: normalizeUrl(val),
+            channel: parsed.channel,
+          });
+        } else if (!val) {
           inTelegram = true;
         }
+        break;
+      }
+      case 'sources':
+        inSources = true;
         break;
       case 'labels':
         inLabels = true;
@@ -164,6 +221,25 @@ export function parseRazdfeedConfig(
           config.labels.push(...inline);
         }
         break;
+    }
+  }
+
+  // Legacy fallback: no sources but old keys present
+  if (config.sources.length === 0) {
+    if (config.sourceRepo) {
+      config.sources.push({
+        type: 'github',
+        url: githubUrlFromRepo(config.sourceRepo, config.category.toLowerCase()),
+        repo: config.sourceRepo,
+        category: config.category.toLowerCase(),
+      });
+    }
+    if (config.telegram?.channel) {
+      config.sources.push({
+        type: 'telegram',
+        url: `https://t.me/${config.telegram.channel}`,
+        channel: config.telegram.channel,
+      });
     }
   }
 
@@ -187,8 +263,8 @@ export async function discoverAuthors(): Promise<DiscoveredAuthor[]> {
       continue;
     }
     const config = parseRazdfeedConfig(text, owner, repo);
-    const tg = config.telegram ? `, telegram: ${config.telegram.channel}` : '';
-    console.log(`  ${owner}/${repo}: ${config.name} (repo=${config.sourceRepo ?? owner + '/' + repo}${tg})`);
+    const srcs = config.sources.map((s) => `${s.type}:${s.repo ?? s.channel ?? s.url}`).join(', ');
+    console.log(`  ${owner}/${repo}: ${config.name} (${srcs || 'no sources'})`);
     authors.push({ owner, repo, config });
   }
 
