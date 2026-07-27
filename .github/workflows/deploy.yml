@@ -5,8 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # Rebuild every hour to refresh collected data
-    - cron: '15 * * * *'
+    # Rebuild every 10 minutes to refresh collected data
+    - cron: '*/10 * * * *'
 
 permissions:
   contents: read
