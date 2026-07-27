@@ -5,20 +5,20 @@
 const GRAPHQL_URL = 'https://api.github.com/graphql';
 const REST_URL = 'https://api.github.com';
 
-function token(): string {
-  const t = process.env.GITHUB_TOKEN;
-  if (!t) throw new Error('GITHUB_TOKEN is required');
-  return t;
+function token(): string | undefined {
+  return process.env.GITHUB_TOKEN;
 }
 
 export async function graphql<T>(
   query: string,
   variables: Record<string, unknown> = {},
 ): Promise<T> {
+  const t = token();
+  if (!t) throw new Error('GITHUB_TOKEN is required for GraphQL');
   const res = await fetch(GRAPHQL_URL, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token()}`,
+      Authorization: `Bearer ${t}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ query, variables }),
@@ -39,13 +39,23 @@ export async function graphql<T>(
 export async function rest<T>(
   path: string,
   init: RequestInit = {},
+  requireToken = true,
 ): Promise<T> {
+  const t = token();
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+  if (t) {
+    headers.Authorization = `Bearer ${t}`;
+  } else if (requireToken) {
+    throw new Error('GITHUB_TOKEN is required for this request');
+  }
+
   const res = await fetch(`${REST_URL}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${token()}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
+      ...headers,
       ...init.headers,
     },
   });
@@ -54,6 +64,11 @@ export async function rest<T>(
     throw new Error(`GitHub REST ${res.status} ${path}: ${body}`);
   }
   return (await res.json()) as T;
+}
+
+/** Public REST request (no token required). */
+export async function restPublic<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return rest<T>(path, init, false);
 }
 
 /** Fetch raw file content from a repo via raw.githubusercontent.com. */

@@ -2,8 +2,7 @@
  * Discover authors: search GitHub for repositories named "razdfeed".
  */
 
-import { graphql } from './github.ts';
-import { fetchRawFile } from './github.ts';
+import { restPublic, fetchRawFile } from './github.ts';
 import type { BlogConfig, DiscoveredAuthor, Source } from './types.ts';
 
 /**
@@ -13,36 +12,20 @@ import type { BlogConfig, DiscoveredAuthor, Source } from './types.ts';
 export async function discoverRazdfeedRepos(): Promise<
   { owner: string; repo: string }[]
 > {
-  const query = `
-    query($query: String!) {
-      search(query: $query, type: REPOSITORY, first: 100) {
-        nodes {
-          ... on Repository {
-            name
-            nameWithOwner
-            owner { login }
-            isFork
-            isPrivate
-          }
-        }
-      }
-    }
-  `;
+  const data = await restPublic<{
+    total_count: number;
+    incomplete_results: boolean;
+    items: Array<{
+      full_name: string;
+      owner: { login: string };
+      name: string;
+      fork: boolean;
+      private: boolean;
+    }>;
+  }>('/search/repositories?q=razdfeed+in:name&sort=updated&order=desc&per_page=100');
 
-  const data = await graphql<{
-    search: {
-      nodes: Array<{
-        name: string;
-        nameWithOwner: string;
-        owner: { login: string };
-        isFork: boolean;
-        isPrivate: boolean;
-      }>;
-    };
-  }>(query, { query: 'razdfeed in:name' });
-
-  return data.search.nodes
-    .filter((r) => r.name.toLowerCase() === 'razdfeed' && !r.isFork && !r.isPrivate)
+  return data.items
+    .filter((r) => r.name.toLowerCase() === 'razdfeed' && !r.fork && !r.private)
     .map((r) => ({ owner: r.owner.login, repo: r.name }));
 }
 
@@ -135,8 +118,22 @@ export function parseRazdfeedConfig(
     if (inSources) {
       const itemMatch = raw.match(/^\s+-\s*(.*)$/);
       if (itemMatch) {
-        currentSource = { type: undefined as any };
+        const itemBody = itemMatch[1].trim();
+        currentSource = {};
         config.sources.push(currentSource as Source);
+        if (itemBody) {
+          // inline one-line item: "- type: github"
+          const inlineMatch = itemBody.match(/^(\w[\w-]*)\s*:\s*(.*)$/);
+          if (inlineMatch && inlineMatch[1] && inlineMatch[2]) {
+            const key = inlineMatch[1].trim();
+            const val = inlineMatch[2].trim().replace(/^["']|["']$/g, '');
+            if (key === 'type') currentSource.type = val as 'github' | 'telegram';
+            if (key === 'url') currentSource.url = normalizeUrl(val);
+            if (key === 'repo') currentSource.repo = val;
+            if (key === 'category') currentSource.category = val;
+            if (key === 'channel') currentSource.channel = val;
+          }
+        }
         continue;
       }
       const nestedMatch = raw.match(/^\s+(\w[\w-]*)\s*:\s*(.*)$/);
@@ -150,8 +147,10 @@ export function parseRazdfeedConfig(
         if (key === 'channel') currentSource.channel = val;
         continue;
       }
-      inSources = false;
-      currentSource = null;
+      if (raw.trim().length > 0 && !raw.match(/^\s*#/)) {
+        inSources = false;
+        currentSource = null;
+      }
     }
 
     const m = line.match(/^(\w[\w-]*)\s*:\s*(.*)$/);
@@ -221,6 +220,23 @@ export function parseRazdfeedConfig(
           config.labels.push(...inline);
         }
         break;
+    }
+  }
+
+  // Derive repo / channel from url if missing
+  for (const source of config.sources) {
+    if (source.type === 'github' && !source.repo && source.url) {
+      const parsed = parseGithubDiscussionsUrl(source.url);
+      if (parsed) {
+        source.repo = parsed.repo;
+        source.category = source.category ?? parsed.category;
+      }
+    }
+    if (source.type === 'telegram' && !source.channel && source.url) {
+      const parsed = parseTelegramUrl(source.url);
+      if (parsed) {
+        source.channel = parsed.channel;
+      }
     }
   }
 
