@@ -274,9 +274,10 @@ export async function collectTelegramPosts(
     .map((p) => {
       let body = p.textMarkdown || p.text;
 
-      // If there's a link preview, skip YouTube thumbnail injection —
-      // the LinkPreviewCard already shows the preview image.
-      if (!p.linkPreview) {
+      // Skip YouTube thumbnail injection if there's a link preview OR media images —
+      // LinkPreviewCard or MediaImage already shows visuals.
+      const hasMediaImages = p.media.images.length > 0;
+      if (!p.linkPreview && !hasMediaImages) {
         // First, handle markdown links: [text](https://youtube.com/watch?v=XXX)
         body = body.replace(
           /\[([^\]]*)\]\((https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})[^)]*\)/g,
