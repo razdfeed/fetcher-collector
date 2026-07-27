@@ -7,7 +7,8 @@
     "local": "bun run index.ts --local",
     "dev": "bun run index.ts --dry-run",
     "gen-index": "bun run scripts/gen-index.ts",
-    "build": "bun run index.ts --local && bun run scripts/gen-index.ts"
+    "build": "bun run index.ts --local && bun run scripts/gen-index.ts",
+    "types:check": "bunx tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest"

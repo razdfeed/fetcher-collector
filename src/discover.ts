@@ -73,7 +73,7 @@ function parseGithubDiscussionsUrl(url: string): { repo: string; category?: stri
 
 function parseTelegramUrl(url: string): { channel: string } | null {
   const m = url.match(/t\.me\/(.+)/);
-  if (!m) return null;
+  if (!m || !m[1]) return null;
   return { channel: m[1] };
 }
 
@@ -140,7 +140,7 @@ export function parseRazdfeedConfig(
         continue;
       }
       const nestedMatch = raw.match(/^\s+(\w[\w-]*)\s*:\s*(.*)$/);
-      if (nestedMatch && currentSource) {
+      if (nestedMatch && nestedMatch[1] && nestedMatch[2] && currentSource) {
         const key = nestedMatch[1].trim();
         const val = nestedMatch[2].trim().replace(/^["']|["']$/g, '');
         if (key === 'type') currentSource.type = val as 'github' | 'telegram';

@@ -20,26 +20,26 @@ const turndown = new TurndownService({
 });
 
 turndown.addRule('tg-emoji', {
-  filter: (node: HTMLElement) =>
-    (node as unknown as { nodeName: string }).nodeName === 'TG-EMOJI',
-  replacement: (_content: string, node: HTMLElement) => node.text || '',
+  filter: (node, _options) =>
+    ((node as unknown as { nodeName: string }).nodeName ?? '').toUpperCase() === 'TG-EMOJI',
+  replacement: (_content, node, _options) => (node as unknown as { text?: string }).text ?? '',
 });
 
 turndown.addRule('tg-spoiler', {
-  filter: (node: HTMLElement) =>
-    (node as unknown as { nodeName: string }).nodeName === 'TG-SPOILER',
-  replacement: (content: string) => `||${content.trim()}||`,
+  filter: (node, _options) =>
+    ((node as unknown as { nodeName: string }).nodeName ?? '').toUpperCase() === 'TG-SPOILER',
+  replacement: (content, _node, _options) => `||${content.trim()}||`,
 });
 
 turndown.addRule('tg-math', {
-  filter: (node: HTMLElement) =>
-    (node as unknown as { nodeName: string }).nodeName === 'TG-MATH',
-  replacement: (content: string) => `$${content.trim()}$`,
+  filter: (node, _options) =>
+    ((node as unknown as { nodeName: string }).nodeName ?? '').toUpperCase() === 'TG-MATH',
+  replacement: (content, _node, _options) => `$${content.trim()}$`,
 });
 
 turndown.addRule('clean-links', {
   filter: 'a',
-  replacement: (content: string, node: HTMLElement) => {
+  replacement: (content, node, _options) => {
     const href = node.getAttribute('href') || '';
     const onclick = node.getAttribute('onclick') || '';
     if (onclick.includes('confirm')) {
@@ -126,7 +126,7 @@ function parsePosts(html: string, channel: string): TelegramRawPost[] {
       forwardedFrom = fwdEl.textContent?.replace(/^Forwarded from\s*/i, '').trim() || 'unknown';
       const fwdLink = fwdEl.querySelector('a[href^="https://t.me/"]');
       if (fwdLink) {
-        forwardedFromUrl = fwdLink.getAttribute('href');
+        forwardedFromUrl = fwdLink.getAttribute('href') ?? null;
       }
     }
 
