@@ -96,6 +96,11 @@ async function main() {
     const authorInfo = await fetchAuthorInfo(owner);
     const authorName = config.name || authorInfo?.name || owner;
 
+    let authorPostCount = 0;
+    let authorLatestPostAt: string | null = null;
+    let firstSourceRepo = '';
+    let firstSourceType: 'github' | 'telegram' = 'github';
+
     for (const source of config.sources) {
       if (source.type === 'github' && source.repo) {
         const [srcOwner, srcRepo] = source.repo.split('/');
@@ -111,29 +116,22 @@ async function main() {
         });
         console.log(`    ${posts.length} discussion posts collected`);
 
-        const sourceRepo = source.repo;
-        authorEntries.push({
-          login: owner,
-          name: authorName,
-          description: config.description,
-          language: config.language,
-          avatar: authorInfo?.avatar_url ?? '',
-          bio: authorInfo?.bio ?? null,
-          htmlUrl: authorInfo?.html_url ?? `https://github.com/${owner}`,
-          blog: authorInfo?.blog ?? null,
-          repo: `${owner}/${repo}`,
-          sourceRepo,
-          sourceType: 'github',
-          postCount: posts.length,
-          latestPostAt: posts[0]?.createdAt ?? null,
-        });
+        if (!firstSourceRepo) {
+          firstSourceRepo = source.repo;
+          firstSourceType = 'github';
+        }
+        authorPostCount += posts.length;
+        const latest = posts[0]?.createdAt ?? null;
+        if (latest && (!authorLatestPostAt || latest > authorLatestPostAt)) {
+          authorLatestPostAt = latest;
+        }
 
         for (const post of posts) {
           allFeedPosts.push({
             ...post,
             authorLogin: owner,
             authorName,
-            sourceRepo,
+            sourceRepo: source.repo,
           });
         }
       }
@@ -150,33 +148,42 @@ async function main() {
         });
         console.log(`    ${posts.length} telegram posts collected`);
 
-        const sourceRepo = `t.me/${channel}`;
-        authorEntries.push({
-          login: channel,
-          name: authorName,
-          description: config.description,
-          language: config.language,
-          avatar: authorInfo?.avatar_url ?? '',
-          bio: authorInfo?.bio ?? null,
-          htmlUrl: `https://t.me/${channel}`,
-          blog: authorInfo?.blog ?? null,
-          repo: `${owner}/${repo}`,
-          sourceRepo,
-          sourceType: 'telegram',
-          postCount: posts.length,
-          latestPostAt: posts[0]?.createdAt ?? null,
-        });
+        if (!firstSourceRepo) {
+          firstSourceRepo = `t.me/${channel}`;
+          firstSourceType = 'telegram';
+        }
+        authorPostCount += posts.length;
+        const latest = posts[0]?.createdAt ?? null;
+        if (latest && (!authorLatestPostAt || latest > authorLatestPostAt)) {
+          authorLatestPostAt = latest;
+        }
 
         for (const post of posts) {
           allFeedPosts.push({
             ...post,
-            authorLogin: channel,
+            authorLogin: owner,
             authorName,
-            sourceRepo,
+            sourceRepo: `t.me/${channel}`,
           });
         }
       }
     }
+
+    authorEntries.push({
+      login: owner,
+      name: authorName,
+      description: config.description,
+      language: config.language,
+      avatar: authorInfo?.avatar_url ?? '',
+      bio: authorInfo?.bio ?? null,
+      htmlUrl: authorInfo?.html_url ?? `https://github.com/${owner}`,
+      blog: authorInfo?.blog ?? null,
+      repo: `${owner}/${repo}`,
+      sourceRepo: firstSourceRepo,
+      sourceType: firstSourceType,
+      postCount: authorPostCount,
+      latestPostAt: authorLatestPostAt,
+    });
   }
 
   // 3. Sort global feed: newest posts first
