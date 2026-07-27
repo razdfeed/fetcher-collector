@@ -51,7 +51,9 @@ function normalizeUrl(url: string): string {
 function parseGithubDiscussionsUrl(url: string): { repo: string; category?: string } | null {
   const m = url.match(/github\.com\/([^/]+)\/([^/]+)\/discussions\/categories\/(.+)/);
   if (!m) return null;
-  return { repo: `${m[1]}/${m[2]}`, category: m[3] };
+  const rawCat = decodeURIComponent(m[3]);
+  const category = rawCat.charAt(0).toUpperCase() + rawCat.slice(1);
+  return { repo: `${m[1]}/${m[2]}`, category };
 }
 
 function parseTelegramUrl(url: string): { channel: string } | null {

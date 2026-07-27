@@ -91,9 +91,12 @@ export async function fetchDiscussions(
     };
   });
 
-  // Filter by category if configured and not the default
-  if (config.category && config.category !== 'Announcements') {
-    posts = posts.filter((p) => p.category === config.category);
+  // Filter by category if configured (case-insensitive, skip the default)
+  if (config.category) {
+    const cfgCat = config.category.toLowerCase();
+    if (cfgCat !== 'announcements') {
+      posts = posts.filter((p) => p.category.toLowerCase() === cfgCat);
+    }
   }
 
   // Filter by labels (post must include at least one configured label)
