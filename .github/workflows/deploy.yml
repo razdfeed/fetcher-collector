@@ -54,28 +54,14 @@ jobs:
       - name: Generate index page
         run: bun run scripts/gen-index.ts
 
-      - name: Check if data changed
-        id: changed
-        run: |
-          if git diff --quiet -- dist/ 2>/dev/null; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No changes in dist/; skipping deploy."
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Changes detected in dist/."
-          fi
-
       - name: Setup Pages
-        if: steps.changed.outputs.changed == 'true'
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
-        if: steps.changed.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
       - name: Deploy to GitHub Pages
-        if: steps.changed.outputs.changed == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
