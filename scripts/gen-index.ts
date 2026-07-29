@@ -82,6 +82,32 @@ function formatDateRu(iso: string): string {
   });
 }
 
+function timeAgoRu(iso: string, nowIso: string = new Date().toISOString()): string {
+  const then = new Date(iso).getTime();
+  const now = new Date(nowIso).getTime();
+  const diffMs = now - then;
+  const diffSec = Math.round(diffMs / 1000);
+  const diffMin = Math.round(diffSec / 60);
+  const diffHour = Math.round(diffMin / 60);
+  const diffDay = Math.round(diffHour / 24);
+
+  if (diffSec < 60) return 'только что';
+  if (diffMin < 60) return `${diffMin} ${pluralRu(diffMin, 'минуту', 'минуты', 'минут')} назад`;
+  if (diffHour < 24) return `${diffHour} ${pluralRu(diffHour, 'час', 'часа', 'часов')} назад`;
+  if (diffDay === 1) return 'вчера';
+  if (diffDay < 7) return `${diffDay} ${pluralRu(diffDay, 'день', 'дня', 'дней')} назад`;
+  return formatDateRu(iso);
+}
+
+function pluralRu(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 19) return many;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
 // Escape for embedding in HTML/JS
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -420,7 +446,7 @@ console.log(<span class="s">\`Загружено \${posts.length} из \${page.t
     </div>
   </section>
 
-  <p class="generated">Сгенерировано: ${formatDateRu(generatedAt)} · Данные обновлены: ${formatDateRu(dataUpdatedAt)}</p>
+  <p class="generated">Сгенерировано: ${timeAgoRu(generatedAt)} (${formatDateRu(generatedAt)}) · Данные обновлены: ${timeAgoRu(dataUpdatedAt)} (${formatDateRu(dataUpdatedAt)})</p>
 </div>
 
 <script>
