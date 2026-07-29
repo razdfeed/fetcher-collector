@@ -70,6 +70,17 @@ const firstPage: PostsPage | null = postPages[0]
   : null;
 
 const generatedAt = new Date().toISOString();
+const dataUpdatedAt = authors?.generatedAt ?? generatedAt;
+
+function formatDateRu(iso: string): string {
+  return new Date(iso).toLocaleDateString('ru-RU', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 // Escape for embedding in HTML/JS
 function esc(s: string): string {
@@ -254,6 +265,7 @@ const html = `<!DOCTYPE html>
       <div class="stat"><div class="num">${authors?.count ?? 0}</div><div class="label">авторов</div></div>
       <div class="stat"><div class="num">${firstPage?.totalPosts ?? 0}</div><div class="label">постов</div></div>
       <div class="stat"><div class="num">${postPages.length}</div><div class="label">страниц</div></div>
+      <div class="stat"><div class="num">${formatDateRu(dataUpdatedAt)}</div><div class="label">обновлено</div></div>
     </div>
   </header>
 
@@ -408,7 +420,7 @@ console.log(<span class="s">\`Загружено \${posts.length} из \${page.t
     </div>
   </section>
 
-  <p class="generated">Сгенерировано: ${generatedAt}</p>
+  <p class="generated">Сгенерировано: ${formatDateRu(generatedAt)} · Данные обновлены: ${formatDateRu(dataUpdatedAt)}</p>
 </div>
 
 <script>
