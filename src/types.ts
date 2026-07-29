@@ -139,6 +139,7 @@ export interface AuthorsFile {
 
 /** posts-{n}.json — one page of the global feed. */
 export interface PostsPage {
+  generatedAt: string;
   page: number;
   pageSize: number;
   totalPosts: number;

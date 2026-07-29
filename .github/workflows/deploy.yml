@@ -3,7 +3,6 @@ name: Collect and Deploy
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
   schedule:
     - cron: '*/10 * * * *'

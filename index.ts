@@ -47,6 +47,8 @@ function createSink(): Sink {
 }
 
 /** Build the page object for page N (1-indexed). */
+let generatedAt = now();
+
 function buildPage(
   page: number,
   allPosts: FeedPost[],
@@ -57,6 +59,7 @@ function buildPage(
   const nextPage = page < totalPages ? `posts-${page + 1}.json` : null;
   const prevPage = page > 1 ? `posts-${page - 1}.json` : null;
   return {
+    generatedAt,
     page,
     pageSize: PAGE_SIZE,
     totalPosts: allPosts.length,
@@ -191,9 +194,11 @@ async function main() {
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
+  generatedAt = now();
+
   // 4. Build authors.json
   const authorsFile: AuthorsFile = {
-    generatedAt: now(),
+    generatedAt,
     count: authorEntries.length,
     authors: authorEntries.sort((a, b) => a.login.localeCompare(b.login)),
   };
