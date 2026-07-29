@@ -150,3 +150,11 @@ export interface PostsPage {
   prevPage: string | null;
   posts: FeedPost[];
 }
+
+/** authors/{login}.json — all posts for a single author. */
+export interface AuthorPostsFile {
+  generatedAt: string;
+  login: string;
+  postCount: number;
+  posts: FeedPost[];
+}

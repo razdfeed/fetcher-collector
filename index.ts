@@ -26,11 +26,13 @@ import type {
   AuthorsFile,
   FeedPost,
   PostsPage,
+  AuthorPostsFile,
 } from './src/types.ts';
 
 const TARGET_OWNER = 'razdfeed';
 const TARGET_REPO = 'razdfeed.github.io';
 const DATA_DIR = 'public/data';
+const AUTHORS_DIR = `${DATA_DIR}/authors`;
 const LOCAL_DIR = 'dist';
 const PAGE_SIZE = 100;
 
@@ -203,16 +205,35 @@ async function main() {
     authors: authorEntries.sort((a, b) => a.login.localeCompare(b.login)),
   };
 
-  // 5. Paginate posts into posts-{n}.json
+  // 5. Build per-author posts: authors/{login}.json
+  const authorPostsByLogin = new Map<string, FeedPost[]>();
+  for (const post of allFeedPosts) {
+    const list = authorPostsByLogin.get(post.authorLogin) ?? [];
+    list.push(post);
+    authorPostsByLogin.set(post.authorLogin, list);
+  }
+
+  const authorPostsFiles: AuthorPostsFile[] = authorEntries.map((entry) => {
+    const posts = authorPostsByLogin.get(entry.login) ?? [];
+    return {
+      generatedAt,
+      login: entry.login,
+      postCount: posts.length,
+      posts,
+    };
+  });
+
+  // 6. Paginate posts into posts-{n}.json
   const totalPages = Math.max(1, Math.ceil(allFeedPosts.length / PAGE_SIZE));
   const pages: PostsPage[] = [];
   for (let p = 1; p <= totalPages; p++) {
     pages.push(buildPage(p, allFeedPosts, totalPages));
   }
 
-  // 6. Summary
+  // 7. Summary
   console.log('\n=== Summary ===');
   console.log(`Authors: ${authorsFile.count}, Posts: ${allFeedPosts.length}, Pages: ${totalPages}`);
+  console.log(`Author files: ${authorPostsFiles.length}`);
 
   if (DRY_RUN) {
     console.log('\n(Dry run — preview only. Files written to dist/ for inspection.)');
@@ -227,12 +248,22 @@ async function main() {
     return;
   }
 
-  // 7. Write files
+  // 8. Write files
   await sink.write(
     `${DATA_DIR}/authors.json`,
     JSON.stringify(authorsFile, null, 2),
     `chore(data): authors (${authorsFile.count})`,
   );
+
+  for (const authorPosts of authorPostsFiles) {
+    const filename = `authors/${authorPosts.login}.json`;
+    await sink.write(
+      `${DATA_DIR}/${filename}`,
+      JSON.stringify(authorPosts, null, 2),
+      `chore(data): ${filename} (${authorPosts.postCount} posts)`,
+    );
+    console.log(`  wrote ${filename} — ${authorPosts.postCount} posts`);
+  }
 
   for (const page of pages) {
     const filename = `posts-${page.page}.json`;
@@ -244,17 +275,25 @@ async function main() {
     console.log(`  wrote ${filename} — ${page.posts.length} posts, next: ${page.nextPage ?? 'end'}`);
   }
 
-  // 8. Prune stale post pages from previous runs (e.g. had 5 pages, now 3)
+  // 9. Prune stale files from previous runs
   const existing = await sink.list(DATA_DIR);
   const expectedFiles = new Set([
     'authors.json',
+    ...authorPostsFiles.map((a) => `authors/${a.login}.json`),
     ...pages.map((p) => `posts-${p.page}.json`),
   ]);
+  const expectedAuthorFiles = new Set(
+    authorPostsFiles.map((a) => `authors/${a.login}.json`),
+  );
   for (const filePath of existing) {
     const fileName = filePath.split('/').pop() ?? '';
     if (fileName.startsWith('posts-') && !expectedFiles.has(fileName)) {
       console.log(`  pruning stale ${fileName}`);
       await sink.delete(filePath, `chore(data): prune stale ${fileName}`);
+    }
+    if (filePath.startsWith(`${DATA_DIR}/authors/`) && !expectedAuthorFiles.has(filePath.replace(`${DATA_DIR}/`, ''))) {
+      console.log(`  pruning stale author file ${filePath}`);
+      await sink.delete(filePath, `chore(data): prune stale author file`);
     }
   }
 

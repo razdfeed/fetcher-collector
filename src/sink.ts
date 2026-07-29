@@ -38,9 +38,18 @@ export class LocalSink implements Sink {
   async list(dirPath: string): Promise<string[]> {
     const full = join(this.rootDir, dirPath);
     if (!existsSync(full)) return [];
-    return readdirSync(full)
-      .filter((f) => f.endsWith('.json'))
-      .map((f) => `${dirPath}/${f}`);
+    const entries = readdirSync(full, { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+      const childPath = `${dirPath}/${entry.name}`;
+      if (entry.isDirectory()) {
+        const nested = await this.list(childPath);
+        files.push(...nested);
+      } else if (entry.name.endsWith('.json')) {
+        files.push(childPath);
+      }
+    }
+    return files;
   }
 
   async delete(path: string, _message: string): Promise<boolean> {
